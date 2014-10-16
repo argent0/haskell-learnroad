@@ -32,61 +32,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import System.Environment (getArgs)
 import System.IO
 import Data.List (elemIndex)
-import Control.Monad
 
 class KeyValueContainer c where
-   insert :: Ord k => c k v -> (k, v) -> c k v
+   insert :: Ord k => c k v -> k -> v -> c k v
    insertList :: Ord k => c k v -> [(k,v)] -> c k v
-   insertList bt as = foldr (flip insert) bt as
+   insertList bt as = foldl (\t (k,v) -> insert t k v) bt as
    search :: Ord k => c k v -> k -> Maybe v
 
-data BSTree k v = NullTree | Tip (k, v) | BSTree {
-   node :: (k, v),
-	left :: BSTree k v,
-	right :: BSTree k v
-} deriving Show
+data BSTree k v = EmptyTree | Leaf k v | Branch k v (BSTree k v) (BSTree k v) deriving Show
 
 instance KeyValueContainer BSTree where
-   insert NullTree (nk, nv) = Tip (nk, nv)
+   insert EmptyTree k v = Leaf k v 
+   insert (Leaf k v) nk nv = case (compare nk k) of
+      LT -> Branch k v (Leaf nk nv) EmptyTree
+      GT -> Branch k v EmptyTree (Leaf nk nv)
+      EQ -> Leaf k nv
 
-   insert ot@(Tip (k, v)) (nk, nv) = case (compare nk k) of
-      LT -> BSTree {
-         node = (k, v),
-         left = Tip (nk, nv),
-         right = NullTree }
-      GT -> BSTree {
-         node = (k, v),
-         left = NullTree,
-         right = Tip (nk, nv) }
-      EQ -> Tip (nk, nv)
+   insert (Branch k v l r) nk nv = case (compare nk k) of
+      LT -> Branch k v (insert l nk nv) r
+      GT -> Branch k v l (insert r nk nv)
+      EQ -> Branch k nv l r
 
-   insert ot@(BSTree {node = (k,v), left = lt, right = rt}) (nk,nv) = case (compare nk k) of
-      LT -> BSTree {
-         node = (k,v),
-         left = (insert	lt (nk, nv)),
-         right=rt}
-      GT -> BSTree {
-         node = (k,v),
-         left = lt,
-         right = (insert rt (nk, nv))}
-      EQ -> BSTree {
-         node = (nk, nv),
-         left = lt,
-         right = rt}
-
-   search NullTree sk = Nothing
-   search (Tip (k, v)) sk 
-      | (k == sk) = Just v
+   search EmptyTree _ = Nothing
+   search (Leaf k v) sk
+      | k == sk = Just v
       | otherwise = Nothing
-   search (BSTree {node=(k,v), left=lt, right=rt}) sk
-      | (sk == k) = Just v
-      | (sk < k) = search lt sk
-      | (sk > k) = search rt sk
 
-splitString :: Char -> String -> ([Char],[Char])
-splitString c str = case (elemIndex c str) of
-	Nothing -> (str,"")
-	Just idx -> let (h,t) = (splitAt idx str) in (h, tail t)
+   search (Branch k v l r) sk
+      | k == sk = Just v
+      | otherwise = case (compare k sk) of
+         LT -> search l sk
+         GT -> search r sk
+         EQ -> undefined
 
 splitRecord :: Char -> String -> Either [Char] ([Char], [Char])
 splitRecord c str = case (elemIndex c str) of
@@ -98,7 +75,7 @@ read_frequencies :: Handle -> IO (Either [Char] (BSTree String Int))
 read_frequencies inputFileHandle = do
 	eof <- hIsEOF inputFileHandle
 	if eof
-		then return $ Right NullTree
+		then return $ Right EmptyTree
 		else do
 			inputStr <- hGetLine inputFileHandle
 			case (splitRecord '\t' inputStr) of
@@ -107,7 +84,7 @@ read_frequencies inputFileHandle = do
 					[(iv,"")] -> (read_frequencies inputFileHandle >>= \et ->
 						case et of
 							Left e -> return $ Left e
-							Right t -> return $ Right $ insert t (k, iv))
+							Right t -> return $ Right $ insert t k iv)
 					otherwise -> return $ Left "Could not convert to int"
 
 

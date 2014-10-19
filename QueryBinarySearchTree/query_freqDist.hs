@@ -36,7 +36,7 @@ import Data.List (elemIndex)
 class KeyValueContainer c where
    insert :: Ord k => c k v -> k -> v -> c k v
    insertList :: Ord k => c k v -> [(k,v)] -> c k v
-   insertList bt as = foldl (\t (k,v) -> insert t k v) bt as
+   insertList bt as = foldr (\(k,v) t -> insert t k v) bt as
    search :: Ord k => c k v -> k -> Maybe v
 
 data BSTree k v = EmptyTree | Leaf k v | Branch k v (BSTree k v) (BSTree k v) deriving Show
@@ -58,12 +58,11 @@ instance KeyValueContainer BSTree where
       | k == sk = Just v
       | otherwise = Nothing
 
-   search (Branch k v l r) sk
-      | k == sk = Just v
-      | otherwise = case (compare k sk) of
+   search (Branch k v l r) sk =
+      case (compare sk k) of
          LT -> search l sk
          GT -> search r sk
-         EQ -> undefined
+         EQ -> Just v
 
 splitRecord :: Char -> String -> Either [Char] ([Char], [Char])
 splitRecord c str = case (elemIndex c str) of
@@ -87,7 +86,6 @@ read_frequencies inputFileHandle = do
 							Right t -> return $ Right $ insert t k iv)
 					otherwise -> return $ Left "Could not convert to int"
 
-
 read_tree_from_file :: FilePath -> IO (Either [Char] (BSTree String Int))
 read_tree_from_file fp = do
    inputFile <- openFile fp ReadMode
@@ -98,6 +96,7 @@ read_tree_from_file fp = do
 make_queries_from_stdin :: (BSTree String Int) -> IO ()
 make_queries_from_stdin tree = do
    putStr "query> "
+   hFlush stdout
    eof <- hIsEOF stdin
    if (eof)
       then putStrLn "\nGood Bye!" >> return ()

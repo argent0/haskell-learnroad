@@ -23,6 +23,12 @@ import Data.Foldable
 
 data Tree k v = Empty | Leaf k v | Branch k v (Tree k v) (Tree k v) deriving Show
 
+instance Foldable (Tree k) where
+	foldr _ z Empty = z
+	foldr f z (Leaf _ v) = f v z
+	foldr f z (Branch _ v l r) = Data.Foldable.foldr
+		f (f v (Data.Foldable.foldr f z r)) l
+
 insert :: Ord k => Tree k v -> k -> v -> Tree k v
 insert Empty k v= Leaf k v
 insert (Leaf ok ov) k v
@@ -32,6 +38,8 @@ insert (Branch ok ov l r) k v
    | k < ok = Branch ok ov (insert l k v) r
    | otherwise = Branch ok ov l (insert r k v)
 
+toTree :: (Foldable t, Ord k) => t k -> Tree k k
+toTree = Data.Foldable.foldr (\kk b -> insert b kk kk) Empty
 
 insertAndCountInversions :: Ord k => Integer -> k -> Tree k (Integer, Integer) -> (Tree k (Integer, Integer), Integer)
 insertAndCountInversions acc k Empty = (Leaf k (0,0), acc)

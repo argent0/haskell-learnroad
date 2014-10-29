@@ -55,6 +55,26 @@ insertAndCountInversions acc n (Branch ok (vl,vr) l r)
 		(new_l_branch,cl) = insertAndCountInversions (acc+vr+1) n l
 		(new_r_branch,cr) = insertAndCountInversions acc n r
 
+
+insertAndCountInversions' :: Ord k => k -> Tree k (Integer, Integer) -> (Tree k(Integer, Integer), Integer)
+
+insertAndCountInversions' k Empty = (Leaf k (0,0), 0)
+insertAndCountInversions' k (Leaf ok (vl, vr))
+	| k < ok = (Branch ok (vl+1,vr) (Leaf k (0,0)) Empty, 1)
+	| otherwise = (Branch ok (vl,vr+1) Empty (Leaf k (0,0)), 0)
+insertAndCountInversions' k (Branch ok (vl, vr) l r)
+	| k < ok = (Branch ok (vl+1,vr) new_l_branch r, cl+vr+1)
+	| otherwise = (Branch ok (vl,vr+1) l new_r_branch, cr)
+	where
+		(new_l_branch,cl) = insertAndCountInversions' k l
+		(new_r_branch,cr) = insertAndCountInversions' k r
+
+countInversions' :: (Foldable c, Ord k) => c k -> (Tree k (Integer, Integer), Integer)
+countInversions' = Data.Foldable.foldl f (Empty,0)
+	where
+	f (ot,op) k = (nt, op+np)
+		where (nt, np) = insertAndCountInversions' k ot
+
 countInversions :: (Foldable c, Ord k) => c k -> (Tree k (Integer,Integer), Integer)
 countInversions = Data.Foldable.foldl f (Empty,0)
 	where
@@ -63,9 +83,10 @@ countInversions = Data.Foldable.foldl f (Empty,0)
 		(nt,np) = insertAndCountInversions p n t
 		(t,p) = acc
 
+
 --main :: IO ()
 --main = putStrLn "Hello, World!"
 
 main :: IO ()
 main = getContents >>= \c ->
-		((mapM (\cc -> return (read cc :: Integer)) Control.Monad.>=> print . snd . countInversions) (lines c))
+		((mapM (\cc -> return (read cc :: Integer)) Control.Monad.>=> print . snd . countInversions') (lines c))

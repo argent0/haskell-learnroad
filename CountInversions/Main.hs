@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 module Main where
 
-import Control.Monad
 import Data.Foldable
 
 data Tree k v = Empty | Leaf k v | Branch k v (Tree k v) (Tree k v) deriving Show
@@ -84,9 +83,7 @@ countInversions = Data.Foldable.foldl f (Empty,0)
 		(t,p) = acc
 
 
---main :: IO ()
---main = putStrLn "Hello, World!"
-
 main :: IO ()
-main = getContents >>= \c ->
-		((mapM (\cc -> return (read cc :: Integer)) Control.Monad.>=> print . snd . countInversions') (lines c))
+main = 
+	getContents >>= print . snd . countInversions . fmap r . lines
+	where r cc = read cc :: Integer
